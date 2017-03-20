@@ -14,7 +14,7 @@ import org.springframework.data.annotation.Id;
  * @author amin
  */
 
-//@org.springframework.data.mongodb.core.mapping.Document(collection = "documents")
+@org.springframework.data.mongodb.core.mapping.Document(collection = "documents")
 public final class Document implements Serializable {
    @Id private String id;
    
