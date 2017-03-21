@@ -21,6 +21,7 @@ public final class Document implements Serializable {
    private String documentName;
    private String documentId;
    private String content;
+   private String type;
 
     /**
      * @return the documentName
@@ -62,6 +63,20 @@ public final class Document implements Serializable {
      */
     public void setContent(String content) {
         this.content = content;
+    }
+
+    /**
+     * @return the type
+     */
+    public String getType() {
+        return type;
+    }
+
+    /**
+     * @param type the type to set
+     */
+    public void setType(String type) {
+        this.type = type;
     }
    
 }

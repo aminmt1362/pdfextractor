@@ -28,7 +28,7 @@ public class MongoTest {
         Document d = new Document();
         d.setDocumentId("chic_1");
         d.setDocumentName("chic");
-        repository.insert(d);
+//        repository.insert(d);
 
         List<Document> listOfDocuments = repository.findAll();
 
