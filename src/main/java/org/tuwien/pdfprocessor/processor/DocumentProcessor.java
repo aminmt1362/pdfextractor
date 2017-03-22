@@ -8,6 +8,14 @@ package org.tuwien.pdfprocessor.processor;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.Stream;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.jsoup.Jsoup;
@@ -25,12 +33,31 @@ import org.tuwien.pdfprocessor.helper.*;
 public class DocumentProcessor {
 
     private static final String FILENAME = "/home/amin/Documents/amin/pdfgenie/CLEF2013wn-CHiC-HallEt2013.html";
+    private static final String GTPATH = "/home/amin/Documents/amin/classification/allfileshtml/";
 
     public void process() throws FileNotFoundException, IOException {
 
-        String htmldata = Utility.readFile(FILENAME, StandardCharsets.UTF_8);
+         List<JSONArray> extractedFiles = new ArrayList<>();
+        try (Stream<Path> paths = Files.walk(Paths.get(GTPATH))) {
+            paths.forEach(filePath -> {
+                if (Files.isRegularFile(filePath)) {
+                    try {
+                        System.out.println(filePath);
+                        String htmldata = Utility.readFile(filePath.toString(), StandardCharsets.UTF_8);
+                        JSONArray jSONArray = processDocument(htmldata, filePath.getFileName().toString());
+                        extractedFiles.add(jSONArray);
+                        // Import it into DB OR CALL TCF IMPORT GT comparison
+                    } catch (IOException ex) {
+                        Logger.getLogger(GroungTruthProcessor.class.getName()).log(Level.SEVERE, null, ex);
+                    }
 
-        JSONArray jSONArrayPTags = processDocument(htmldata, FILENAME);
+                }
+            });
+        }
+        
+        for (JSONArray extractedFile : extractedFiles) {
+            System.out.println(extractedFile.toString());
+        }
     }
 
     /**

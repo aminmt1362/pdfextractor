@@ -33,6 +33,20 @@ public class RestServices {
     @Autowired
     private DocumentProcessor documentProcessor;
     
+    @PostMapping("/documentprocess")
+    public HttpEntity<?> documentProcess() {
+        HttpContentResponse hcr = new HttpContentResponse(HttpContentResponse.STARTED);
+        
+        try {
+            documentProcessor.process();
+        } catch (IOException ex) {
+            Logger.getLogger(RestServices.class.getName()).log(Level.SEVERE, null, ex);
+            hcr = new HttpContentResponse(HttpContentResponse.ERROR);
+            return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
+        }
+        
+        return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
+    }
     
     @PostMapping("/gtprocess")
     public HttpEntity<?> groundTruthProcess() {
