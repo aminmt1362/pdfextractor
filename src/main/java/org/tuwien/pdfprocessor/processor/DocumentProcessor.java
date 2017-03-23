@@ -34,10 +34,13 @@ public class DocumentProcessor {
 
     private static final String FILENAME = "/home/amin/Documents/amin/pdfgenie/CLEF2013wn-CHiC-HallEt2013.html";
     private static final String GTPATH = "/home/amin/Documents/amin/classification/allfileshtml/";
+    
+    private final Logger LOGGER = Logger.getLogger(DocumentProcessor.class.getName());
+    private  List<JSONArray> extractedFiles = new ArrayList<>();
 
     public void process() throws FileNotFoundException, IOException {
 
-         List<JSONArray> extractedFiles = new ArrayList<>();
+        
         try (Stream<Path> paths = Files.walk(Paths.get(GTPATH))) {
             paths.forEach(filePath -> {
                 if (Files.isRegularFile(filePath)) {
@@ -45,17 +48,17 @@ public class DocumentProcessor {
                         System.out.println(filePath);
                         String htmldata = Utility.readFile(filePath.toString(), StandardCharsets.UTF_8);
                         JSONArray jSONArray = processDocument(htmldata, filePath.getFileName().toString());
-                        extractedFiles.add(jSONArray);
+                        getExtractedFiles().add(jSONArray);
                         // Import it into DB OR CALL TCF IMPORT GT comparison
                     } catch (IOException ex) {
-                        Logger.getLogger(GroungTruthProcessor.class.getName()).log(Level.SEVERE, null, ex);
+                        LOGGER.log(Level.SEVERE, null, ex);
                     }
 
                 }
             });
         }
         
-        for (JSONArray extractedFile : extractedFiles) {
+        for (JSONArray extractedFile : getExtractedFiles()) {
             System.out.println(extractedFile.toString());
         }
     }
@@ -111,5 +114,12 @@ public class DocumentProcessor {
         }
 
         return returnTables;
+    }
+
+    /**
+     * @return the extractedFiles
+     */
+    public List<JSONArray> getExtractedFiles() {
+        return extractedFiles;
     }
 }

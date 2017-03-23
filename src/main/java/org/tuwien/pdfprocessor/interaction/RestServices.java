@@ -11,6 +11,7 @@ import org.tuwien.pdfprocessor.helper.HttpContentResponse;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.solr.client.solrj.SolrServerException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
@@ -18,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.tuwien.pdfprocessor.solr.SolrProcessor;
 
 /**
  *
@@ -27,12 +29,40 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class RestServices {
     
+    private final Logger LOGGER = Logger.getLogger(RestServices.class.getName());
+    
     @Autowired
     private GroungTruthProcessor groungTruthProcessor;
     
     @Autowired
     private DocumentProcessor documentProcessor;
     
+    @Autowired
+    private SolrProcessor solrProcessor;
+    
+    /**
+     * Import Processed documents into SOLR.
+     * @return 
+     */
+    @PostMapping("/importtosolr")
+    public HttpEntity<?> importDocumentToSolr() {
+        HttpContentResponse hcr = new HttpContentResponse(HttpContentResponse.STARTED);
+//        
+//        try {
+//            solrClient.insertDocumentsIntoSolr();
+//        } catch (SolrServerException | IOException ex) {
+//            LOGGER.log(Level.SEVERE, null, ex);
+//            hcr = new HttpContentResponse(HttpContentResponse.ERROR);
+//            return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
+//        }
+//        
+        return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
+    }
+    
+    /**
+     * Start processing the HTML document extracted by PDFGENIE (Check Other extractor)
+     * @return 
+     */
     @PostMapping("/documentprocess")
     public HttpEntity<?> documentProcess() {
         HttpContentResponse hcr = new HttpContentResponse(HttpContentResponse.STARTED);
@@ -48,6 +78,10 @@ public class RestServices {
         return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
     }
     
+    /**
+     * Start processing the groundtruth by extracting tables from HTLM files extracted by PDFGENIE
+     * @return 
+     */
     @PostMapping("/gtprocess")
     public HttpEntity<?> groundTruthProcess() {
         
