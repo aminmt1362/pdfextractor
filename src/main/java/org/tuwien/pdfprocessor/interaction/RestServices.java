@@ -48,13 +48,13 @@ public class RestServices {
     public HttpEntity<?> importDocumentToSolr() {
         HttpContentResponse hcr = new HttpContentResponse(HttpContentResponse.STARTED);
 //        
-//        try {
-//            solrClient.insertDocumentsIntoSolr();
-//        } catch (SolrServerException | IOException ex) {
-//            LOGGER.log(Level.SEVERE, null, ex);
-//            hcr = new HttpContentResponse(HttpContentResponse.ERROR);
-//            return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
-//        }
+        try {
+            solrProcessor.insertDocumentsIntoSolr();
+        } catch (SolrServerException | IOException ex) {
+            LOGGER.log(Level.SEVERE, null, ex);
+            hcr = new HttpContentResponse(HttpContentResponse.ERROR);
+            return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
+        }
 //        
         return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
     }

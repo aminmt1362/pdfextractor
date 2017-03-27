@@ -44,11 +44,25 @@ public class RestServiceTests {
         this.mockMvc = webAppContextSetup(webApplicationContext).build();
     }
 
-    @Test
+//    @Test
     public void importGroundTruthTest() throws Exception {
         this.mockMvc.perform(post("/gtprocess")
                 .contentType(contentType)
                 .content(""))
         .andExpect(status().isAccepted());
+    }
+    
+    @Test
+    public void importDocumentsIntoSolr() throws Exception {
+        
+        this.mockMvc.perform(post("/documentprocess")
+                .contentType(contentType)
+                .content("")
+        ).andExpect(status().isAccepted());  
+        
+        this.mockMvc.perform(post("/importtosolr")
+                .contentType(contentType)
+                .content("")
+        ).andExpect(status().isAccepted());                
     }
 }

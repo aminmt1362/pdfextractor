@@ -6,6 +6,9 @@
 package org.tuwien.pdfprocessor.solr;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.PostConstruct;
@@ -13,6 +16,8 @@ import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.common.SolrInputDocument;
 import org.json.JSONArray;
+import org.json.JSONObject;
+import org.jsoup.nodes.Node;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.tuwien.pdfprocessor.helper.AppProperties;
@@ -29,12 +34,11 @@ public class SolrProcessor {
 
     HttpSolrClient solr = null;
 
-    
     private final AppProperties properties;
 
-//    @Autowired
-//    private DocumentProcessor documentProcessor;
-    
+    @Autowired
+    private DocumentProcessor documentProcessor;
+
     @Autowired
     public SolrProcessor(AppProperties properties) {
         this.properties = properties;
@@ -54,18 +58,27 @@ public class SolrProcessor {
      * It should push extracted PDF documents into solr for search
      */
     public void insertDocumentsIntoSolr() throws SolrServerException, IOException {
-        SolrInputDocument solrInputDocument = new SolrInputDocument();
-//        for (JSONArray extractedFile : documentProcessor.getExtractedFiles()) {
-//            solrInputDocument.addField("documentid", extractedFile.getString(0));
-//            solrInputDocument.addField("content", extractedFile.getString(1));
-//            try {
-//                solr.add(solrInputDocument);
-//            } catch (SolrServerException ex) {
-//                LOGGER.log(Level.SEVERE, null, ex);
-//            } catch (IOException ex) {
-//                LOGGER.log(Level.SEVERE, null, ex);
-//            }
-//        }
+        SolrInputDocument solrInputDocument;
+        solr.deleteByQuery("*:*");
         solr.commit();
+        for (JSONArray extractedFile : documentProcessor.getExtractedFiles()) {
+            Iterator it = extractedFile.iterator();
+            while (it.hasNext()) {
+                JSONObject jsonObj = (JSONObject) it.next();
+                solrInputDocument = new SolrInputDocument();
+                solrInputDocument.addField("documentid", jsonObj.get("documentid"));
+                solrInputDocument.addField("content", jsonObj.get("content"));
+                try {
+                    solr.add(solrInputDocument);
+                    solr.commit();
+                } catch (SolrServerException ex) {
+                    LOGGER.log(Level.SEVERE, null, ex);
+                } catch (IOException ex) {
+                    LOGGER.log(Level.SEVERE, null, ex);
+                }
+            }
+
+        }
+
     }
 }

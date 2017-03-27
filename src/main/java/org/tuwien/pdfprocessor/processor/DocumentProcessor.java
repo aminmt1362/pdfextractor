@@ -35,8 +35,8 @@ public class DocumentProcessor {
     private static final String FILENAME = "/home/amin/Documents/amin/pdfgenie/CLEF2013wn-CHiC-HallEt2013.html";
     private static final String GTPATH = "/home/amin/Documents/amin/classification/allfileshtml/";
     
-    private final Logger LOGGER = Logger.getLogger(DocumentProcessor.class.getName());
-    private  List<JSONArray> extractedFiles = new ArrayList<>();
+    private static final Logger LOGGER = Logger.getLogger(DocumentProcessor.class.getName());
+    private final  List<JSONArray> extractedFiles = new ArrayList<>();
 
     public void process() throws FileNotFoundException, IOException {
 
@@ -48,7 +48,7 @@ public class DocumentProcessor {
                         System.out.println(filePath);
                         String htmldata = Utility.readFile(filePath.toString(), StandardCharsets.UTF_8);
                         JSONArray jSONArray = processDocument(htmldata, filePath.getFileName().toString());
-                        getExtractedFiles().add(jSONArray);
+                        this.extractedFiles.add(jSONArray);
                         // Import it into DB OR CALL TCF IMPORT GT comparison
                     } catch (IOException ex) {
                         LOGGER.log(Level.SEVERE, null, ex);
@@ -58,7 +58,7 @@ public class DocumentProcessor {
             });
         }
         
-        for (JSONArray extractedFile : getExtractedFiles()) {
+        for (JSONArray extractedFile : this.extractedFiles) {
             System.out.println(extractedFile.toString());
         }
     }
