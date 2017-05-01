@@ -6,7 +6,7 @@
 package org.tuwien.pdfprocessor.interaction;
 
 import org.tuwien.pdfprocessor.processor.DocumentProcessor;
-import org.tuwien.pdfprocessor.processor.GroungTruthProcessor;
+import org.tuwien.pdfprocessor.processor.GroundTruthProcessor;
 import org.tuwien.pdfprocessor.helper.HttpContentResponse;
 import java.io.IOException;
 import java.util.logging.Level;
@@ -19,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.tuwien.pdfprocessor.processor.DocumentType;
 import org.tuwien.pdfprocessor.processor.Pdf2tableProcessor;
 import org.tuwien.pdfprocessor.solr.SolrProcessor;
 
@@ -32,23 +33,27 @@ public class RestServices {
     private final Logger LOGGER = Logger.getLogger(RestServices.class.getName());
 
     @Autowired
-    private GroungTruthProcessor groungTruthProcessor;
+    private GroundTruthProcessor groungTruthProcessor;
 
     @Autowired
     private DocumentProcessor documentProcessor;
 
     @Autowired
     private Pdf2tableProcessor pdf2tableProcessor;
-    
+
     @Autowired
     private SolrProcessor solrProcessor;
 
     @PostMapping("/processPdf2Table")
-    public HttpEntity<?> processPdf2Table() {
+    public HttpEntity<?> processPdf2Table(@RequestBody DocumentType documentType) {
         HttpContentResponse hcr = new HttpContentResponse(HttpContentResponse.STARTED);
 //        
         try {
-            pdf2tableProcessor.process();
+            if (documentType.getType().toLowerCase().equals("default")) {
+                pdf2tableProcessor.process(Pdf2tableProcessor.PROCESSTYPE.DEFAULT, documentType.getImportToDb());
+            } else if(documentType.getType().toLowerCase().equals("groundtruth")) {
+                pdf2tableProcessor.process(Pdf2tableProcessor.PROCESSTYPE.GROUNDTRUTH, documentType.getImportToDb());
+            }
         } catch (Exception ex) {
             LOGGER.log(Level.SEVERE, null, ex);
             hcr = new HttpContentResponse(HttpContentResponse.ERROR);

@@ -29,7 +29,7 @@ import org.tuwien.pdfprocessor.helper.*;
  * @author amin
  */
 @Service
-public class GroungTruthProcessor {
+public class GroundTruthProcessor {
 
     private static final String FILENAME = "/home/amin/Documents/amin/pdfgenie/CLEF2013wn-CHiC-HallEt2013.html";
     private static final String GTPATH = "/home/amin/Documents/amin/classification/allfileshtml/";
@@ -47,7 +47,7 @@ public class GroungTruthProcessor {
                         extractedFiles.add(jSONArray);
                         // Import it into DB OR CALL TCF IMPORT GT comparison
                     } catch (IOException ex) {
-                        Logger.getLogger(GroungTruthProcessor.class.getName()).log(Level.SEVERE, null, ex);
+                        Logger.getLogger(GroundTruthProcessor.class.getName()).log(Level.SEVERE, null, ex);
                     }
 
                 }

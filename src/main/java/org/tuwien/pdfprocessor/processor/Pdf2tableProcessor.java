@@ -30,6 +30,8 @@ import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.tuwien.pdfprocessor.repository.DocumentRepository;
+import org.tuwien.pdfprocessor.repository.Pdf2tableGtRepository;
+import org.tuwien.pdfprocessor.repository.Pdf2tableRepository;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 import org.w3c.dom.Node;
@@ -44,14 +46,32 @@ import org.xml.sax.SAXException;
 public class Pdf2tableProcessor {
 
     @Autowired
-    private DocumentRepository repository;
+    private Pdf2tableGtRepository gtRepository;
+
+    @Autowired
+    private Pdf2tableRepository repository;
 
     private static final Logger LOGGER = Logger.getLogger(Pdf2tableProcessor.class.getName());
 
-    private static final String MAINPATH = "/home/amin/Documents/amin/classification/pdf2tableresults/all/CLEF/CLEF-2003/";
+    private static final String MAINPATH = "/home/amin/Documents/amin/classification/pdf2tableresults/all/";
+    private static final String GROUNDTRUTHPATH = "/home/amin/Documents/amin/classification/pdf2tableresults/gt/";
 
-    public void process() throws IOException {
-        try (Stream<Path> paths = Files.walk(Paths.get(MAINPATH))) {
+    public enum PROCESSTYPE {
+        DEFAULT,
+        GROUNDTRUTH
+    }
+
+    public void process(PROCESSTYPE processType, Boolean insertIntoDB) throws IOException {
+
+        String finalPath = "";
+
+        if (processType == PROCESSTYPE.GROUNDTRUTH) {
+            finalPath = GROUNDTRUTHPATH;
+        } else {
+            finalPath = MAINPATH;
+        }
+
+        try (Stream<Path> paths = Files.walk(Paths.get(finalPath))) {
             paths.forEach(filePath -> {
                 if (Files.isRegularFile(filePath)) {
 
@@ -64,14 +84,46 @@ public class Pdf2tableProcessor {
                             Document doc = dBuilder.parse(fXmlFile);
                             doc.getDocumentElement().normalize();
 
-                            processDocument(doc, filePath.getParent().toString());
-                        }
+                            JSONArray tables = processDocument(doc, filePath.getParent().toString());
 
+                            // Insert into MongoDB
+                            if (insertIntoDB) {
+                                if (processType == PROCESSTYPE.GROUNDTRUTH) {
+                                    gtRepository.deleteAll();
+                                    for (Object o : tables) {
+                                        if (o instanceof JSONObject) {
+                                            org.tuwien.pdfprocessor.model.Document docModel = new org.tuwien.pdfprocessor.model.Document();
+                                            JSONObject objModel = ((JSONObject) o);
+                                            docModel.setContent(objModel.toString());
+                                            docModel.setDocumentId(objModel.getString("fileid") + "_" + objModel.getString("tablecounter"));
+                                            docModel.setDocumentName(objModel.getString("fileid"));
+                                            docModel.setType("pdf2tablegt");
+                                            gtRepository.insert(docModel);
+                                        }
+                                    }
+                                } else {
+                                    repository.deleteAll();
+                                    for (Object o : tables) {
+                                        if (o instanceof JSONObject) {
+                                            org.tuwien.pdfprocessor.model.Document docModel = new org.tuwien.pdfprocessor.model.Document();
+                                            JSONObject objModel = ((JSONObject) o);
+                                            docModel.setContent(objModel.toString());
+                                            docModel.setDocumentId(objModel.getString("fileid") + "_" + objModel.getInt("tablecounter"));
+                                            docModel.setDocumentName(objModel.getString("fileid"));
+                                            docModel.setType("pdf2table");
+                                            repository.insert(docModel);
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     } catch (SAXException ex) {
                         LOGGER.log(Level.SEVERE, null, ex);
                     } catch (IOException ex) {
                         LOGGER.log(Level.SEVERE, null, ex);
                     } catch (ParserConfigurationException ex) {
+                        LOGGER.log(Level.SEVERE, null, ex);
+                    } catch(Exception ex) {
                         LOGGER.log(Level.SEVERE, null, ex);
                     }
 
@@ -193,11 +245,11 @@ public class Pdf2tableProcessor {
 
                         String fileName = path.substring(path.lastIndexOf("/") + 1).replace(".pdf", "");
 
-                        tableObject.put("fileid", fileName );
+                        tableObject.put("fileid", fileName);
                         tableObject.put("tablecounter", tableCounter);
                         tableObject.put("header", title);
                         tableObject.toString();
-                        
+
                         String fileNameJson = fileName + "_" + tableCounter + ".json";
                         try (FileWriter file = new FileWriter(path + "/" + fileNameJson)) {
                             file.write(tableObject.toString());
