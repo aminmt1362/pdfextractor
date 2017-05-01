@@ -8,6 +8,7 @@ package org.tuwien.pdfprocessor.solr;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -21,7 +22,9 @@ import org.jsoup.nodes.Node;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.tuwien.pdfprocessor.helper.AppProperties;
+import org.tuwien.pdfprocessor.model.Document;
 import org.tuwien.pdfprocessor.processor.DocumentProcessor;
+import org.tuwien.pdfprocessor.repository.DocumentRepository;
 
 /**
  *
@@ -38,6 +41,9 @@ public class SolrProcessor {
 
     @Autowired
     private DocumentProcessor documentProcessor;
+    
+    @Autowired
+    private DocumentRepository repository;
 
     @Autowired
     public SolrProcessor(AppProperties properties) {
@@ -80,5 +86,32 @@ public class SolrProcessor {
 
         }
 
+    }
+    
+    /**
+     * It should push extracted PDF documents (P TAGS) FROM DB into solr for search
+     */
+    public void insertDocumentsIntoSolrFromDB() throws SolrServerException, IOException {
+        SolrInputDocument solrInputDocument;
+        solr.deleteByQuery("*:*");
+        solr.commit();
+        
+        List<Document> lstDocs = repository.findAll();
+        
+        for (Document doc : lstDocs) {
+            
+            solrInputDocument = new SolrInputDocument();
+                solrInputDocument.addField("documentid", doc.getDocumentId());
+                solrInputDocument.addField("content", doc.getContent());
+                try {
+                    solr.add(solrInputDocument);
+                    solr.commit();
+                } catch (SolrServerException ex) {
+                    LOGGER.log(Level.SEVERE, null, ex);
+                } catch (IOException ex) {
+                    LOGGER.log(Level.SEVERE, null, ex);
+                }
+                
+        }
     }
 }
