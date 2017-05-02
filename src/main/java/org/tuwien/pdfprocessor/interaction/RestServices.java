@@ -5,7 +5,7 @@
  */
 package org.tuwien.pdfprocessor.interaction;
 
-import org.tuwien.pdfprocessor.processor.DocumentProcessor;
+import org.tuwien.pdfprocessor.processor.PdfGenieProcessor;
 import org.tuwien.pdfprocessor.processor.GroundTruthProcessor;
 import org.tuwien.pdfprocessor.helper.HttpContentResponse;
 import java.io.IOException;
@@ -36,7 +36,7 @@ public class RestServices {
     private GroundTruthProcessor groungTruthProcessor;
 
     @Autowired
-    private DocumentProcessor documentProcessor;
+    private PdfGenieProcessor pdfGenieProcessor;
 
     @Autowired
     private Pdf2tableProcessor pdf2tableProcessor;
@@ -50,10 +50,32 @@ public class RestServices {
 //        
         try {
             if (documentType.getType().toLowerCase().equals("default")) {
-                pdf2tableProcessor.process(Pdf2tableProcessor.PROCESSTYPE.DEFAULT, documentType.getImportToDb());
-            } else if(documentType.getType().toLowerCase().equals("groundtruth")) {
-                pdf2tableProcessor.process(Pdf2tableProcessor.PROCESSTYPE.GROUNDTRUTH, documentType.getImportToDb());
+                pdf2tableProcessor.process(Pdf2tableProcessor.PROCESSTYPE.DEFAULT, documentType.getImportToDb(), documentType.getSourcePath());
+            } else if (documentType.getType().toLowerCase().equals("groundtruth")) {
+                pdf2tableProcessor.process(Pdf2tableProcessor.PROCESSTYPE.GROUNDTRUTH, documentType.getImportToDb(), documentType.getSourcePath());
             }
+        } catch (Exception ex) {
+            LOGGER.log(Level.SEVERE, null, ex);
+            hcr = new HttpContentResponse(HttpContentResponse.ERROR);
+            return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
+        }
+//        
+        return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
+    }
+
+    /**
+     * It reads only from DB, and sends the extracted selected tables for ground
+     * Truth into TCF scoring system
+     *
+     * @return
+     */
+    @PostMapping("/calcPdf2TableScore")
+    public HttpEntity<?> calculatePdf2TableScore() {
+        HttpContentResponse hcr = new HttpContentResponse(HttpContentResponse.STARTED);
+//        
+        try {
+            String result = pdf2tableProcessor.calculateScoring();
+            hcr = new HttpContentResponse(result);
         } catch (Exception ex) {
             LOGGER.log(Level.SEVERE, null, ex);
             hcr = new HttpContentResponse(HttpContentResponse.ERROR);
@@ -103,67 +125,89 @@ public class RestServices {
         return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
     }
 
-    /**
-     * Start processing the HTML document extracted by PDFGENIE (Check Other
-     * extractor) and import into MongoDB
-     *
-     * @return
-     */
-    @PostMapping("/documentprocesswithdb")
-    public HttpEntity<?> documentProcessAndDBInsert() {
-        HttpContentResponse hcr = new HttpContentResponse(HttpContentResponse.STARTED);
-
-        try {
-            documentProcessor.processDBImport();
-        } catch (IOException ex) {
-            Logger.getLogger(RestServices.class.getName()).log(Level.SEVERE, null, ex);
-            hcr = new HttpContentResponse(HttpContentResponse.ERROR);
-            return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
-        }
-
-        return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
-    }
-
-    /**
-     * Start processing the HTML document extracted by PDFGENIE (Check Other
-     * extractor)
-     *
-     * @return
-     */
-    @PostMapping("/documentprocess")
-    public HttpEntity<?> documentProcess() {
-        HttpContentResponse hcr = new HttpContentResponse(HttpContentResponse.STARTED);
-
-        try {
-            documentProcessor.process();
-        } catch (IOException ex) {
-            Logger.getLogger(RestServices.class.getName()).log(Level.SEVERE, null, ex);
-            hcr = new HttpContentResponse(HttpContentResponse.ERROR);
-            return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
-        }
-
-        return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
-    }
+//    /**
+//     * Start processing the HTML document extracted by PDFGENIE (Check Other
+//     * extractor) and import into MongoDB
+//     *
+//     * @param documentType
+//     * @return
+//     */
+//    @PostMapping("/documentprocesswithdb")
+//    public HttpEntity<?> documentProcessAndDBInsert(@RequestBody DocumentType documentType) {
+//        HttpContentResponse hcr = new HttpContentResponse(HttpContentResponse.STARTED);
+//
+//        try {
+//            pdfGenieProcessor.processDBImport(documentType.getSourcePath());
+//        } catch (IOException ex) {
+//            Logger.getLogger(RestServices.class.getName()).log(Level.SEVERE, null, ex);
+//            hcr = new HttpContentResponse(HttpContentResponse.ERROR);
+//            return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
+//        }
+//
+//        return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
+//    }
+//
+//    /**
+//     * Start processing the HTML document extracted by PDFGENIE (Check Other
+//     * extractor)
+//     *
+//     * @return
+//     */
+//    @PostMapping("/documentprocess")
+//    public HttpEntity<?> documentProcess() {
+//        HttpContentResponse hcr = new HttpContentResponse(HttpContentResponse.STARTED);
+//
+//        try {
+//            pdfGenieProcessor.process();
+//        } catch (IOException ex) {
+//            Logger.getLogger(RestServices.class.getName()).log(Level.SEVERE, null, ex);
+//            hcr = new HttpContentResponse(HttpContentResponse.ERROR);
+//            return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
+//        }
+//
+//        return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
+//    }
 
     /**
      * Start processing the groundtruth by extracting tables from HTLM files
      * extracted by PDFGENIE
      *
+     * @param documentType
      * @return
      */
-    @PostMapping("/gtprocess")
-    public HttpEntity<?> groundTruthProcess() {
+    @PostMapping("/pdfgenieprocess")
+    public HttpEntity<?> pdfGenieGtProcess(@RequestBody DocumentType documentType) {
 
         HttpContentResponse hcr = new HttpContentResponse(HttpContentResponse.STARTED);
 
         try {
-            groungTruthProcessor.process();
+            if (documentType.getType().toLowerCase().equals("groundtruth")) {
+                pdfGenieProcessor.processGt(documentType.getSourcePath());
+            } else if(documentType.getType().toLowerCase().equals("default")) {
+                pdfGenieProcessor.processDBImport(documentType.getSourcePath());
+            }
         } catch (IOException ex) {
             Logger.getLogger(RestServices.class.getName()).log(Level.SEVERE, null, ex);
             hcr = new HttpContentResponse(HttpContentResponse.ERROR);
             return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
         }
 
+        return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
+    }
+
+    @PostMapping("/calcPdfGenieScore")
+    public HttpEntity<?> calculatePdfGenieScore() {
+        HttpContentResponse hcr = new HttpContentResponse(HttpContentResponse.STARTED);
+//        
+        try {
+            String result = pdfGenieProcessor.calculateScoring();
+            hcr = new HttpContentResponse(result);
+        } catch (Exception ex) {
+            LOGGER.log(Level.SEVERE, null, ex);
+            hcr = new HttpContentResponse(HttpContentResponse.ERROR);
+            return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
+        }
+//        
         return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
     }
 

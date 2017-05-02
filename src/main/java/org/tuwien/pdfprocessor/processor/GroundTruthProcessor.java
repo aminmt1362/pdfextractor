@@ -34,6 +34,7 @@ public class GroundTruthProcessor {
     private static final String FILENAME = "/home/amin/Documents/amin/pdfgenie/CLEF2013wn-CHiC-HallEt2013.html";
     private static final String GTPATH = "/home/amin/Documents/amin/classification/allfileshtml/";
 
+    @Deprecated
     public void process() throws FileNotFoundException, IOException {
 
         List<JSONArray> extractedFiles = new ArrayList<>();

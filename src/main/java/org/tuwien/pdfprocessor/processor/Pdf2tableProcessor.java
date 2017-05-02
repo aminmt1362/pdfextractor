@@ -13,6 +13,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.MessageFormat;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -28,7 +29,12 @@ import javax.xml.xpath.XPathFactory;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Example;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+import org.tuwien.pdfprocessor.helper.MongoDBHelper;
 import org.tuwien.pdfprocessor.repository.DocumentRepository;
 import org.tuwien.pdfprocessor.repository.Pdf2tableGtRepository;
 import org.tuwien.pdfprocessor.repository.Pdf2tableRepository;
@@ -50,6 +56,9 @@ public class Pdf2tableProcessor {
 
     @Autowired
     private Pdf2tableRepository repository;
+    
+    @Autowired
+    private MongoDBHelper mongoHelper;
 
     private static final Logger LOGGER = Logger.getLogger(Pdf2tableProcessor.class.getName());
 
@@ -61,15 +70,19 @@ public class Pdf2tableProcessor {
         GROUNDTRUTH
     }
 
-    public void process(PROCESSTYPE processType, Boolean insertIntoDB) throws IOException {
+    public void process(PROCESSTYPE processType, Boolean insertIntoDB, String sourcePath) throws IOException {
 
         String finalPath = "";
 
         if (processType == PROCESSTYPE.GROUNDTRUTH) {
             finalPath = GROUNDTRUTHPATH;
+            mongoHelper.deleteAllDocuments("pdf2tablegt");
         } else {
             finalPath = MAINPATH;
+            mongoHelper.deleteAllDocuments("pdf2table");
         }
+
+        finalPath = sourcePath;
 
         try (Stream<Path> paths = Files.walk(Paths.get(finalPath))) {
             paths.forEach(filePath -> {
@@ -89,20 +102,20 @@ public class Pdf2tableProcessor {
                             // Insert into MongoDB
                             if (insertIntoDB) {
                                 if (processType == PROCESSTYPE.GROUNDTRUTH) {
-                                    gtRepository.deleteAll();
+                                    
                                     for (Object o : tables) {
                                         if (o instanceof JSONObject) {
                                             org.tuwien.pdfprocessor.model.Document docModel = new org.tuwien.pdfprocessor.model.Document();
                                             JSONObject objModel = ((JSONObject) o);
                                             docModel.setContent(objModel.toString());
-                                            docModel.setDocumentId(objModel.getString("fileid") + "_" + objModel.getString("tablecounter"));
+                                            docModel.setDocumentId(objModel.getString("fileid") + "_" + objModel.getInt("tablecounter"));
                                             docModel.setDocumentName(objModel.getString("fileid"));
                                             docModel.setType("pdf2tablegt");
                                             gtRepository.insert(docModel);
                                         }
                                     }
                                 } else {
-                                    repository.deleteAll();
+                                    
                                     for (Object o : tables) {
                                         if (o instanceof JSONObject) {
                                             org.tuwien.pdfprocessor.model.Document docModel = new org.tuwien.pdfprocessor.model.Document();
@@ -123,7 +136,7 @@ public class Pdf2tableProcessor {
                         LOGGER.log(Level.SEVERE, null, ex);
                     } catch (ParserConfigurationException ex) {
                         LOGGER.log(Level.SEVERE, null, ex);
-                    } catch(Exception ex) {
+                    } catch (Exception ex) {
                         LOGGER.log(Level.SEVERE, null, ex);
                     }
 
@@ -272,6 +285,33 @@ public class Pdf2tableProcessor {
         }
 
         return returnTables;
+    }
+
+    /**
+     * It will read the PDf2tables from database and sends them into TCF scoring
+     * system
+     */
+    public String calculateScoring() {
+
+        org.tuwien.pdfprocessor.model.Document exampleDocument = new org.tuwien.pdfprocessor.model.Document();
+        exampleDocument.setType("pdf2tablegt");
+        Example<org.tuwien.pdfprocessor.model.Document> example = Example.of(exampleDocument);
+
+        List<org.tuwien.pdfprocessor.model.Document> docs = repository.findAll(example);
+
+        RestTemplate restTemplate = new RestTemplate();
+        // Clear Tables
+        restTemplate.delete("http://localhost:8090/deleteUserTable/");
+
+        for (org.tuwien.pdfprocessor.model.Document doc : docs) {
+            restTemplate.postForEntity("http://localhost:8090/importtable/", doc.getContent(), org.tuwien.pdfprocessor.model.Document.class);
+            
+        }
+        
+        // now that all tables are importes, now we start calculation
+        String entity = restTemplate.getForObject("http://localhost:8090/calculateScore/", String.class);
+        System.out.print(entity);
+        return entity;
     }
 
 }

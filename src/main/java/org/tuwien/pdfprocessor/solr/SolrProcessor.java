@@ -23,7 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.tuwien.pdfprocessor.helper.AppProperties;
 import org.tuwien.pdfprocessor.model.Document;
-import org.tuwien.pdfprocessor.processor.DocumentProcessor;
+import org.tuwien.pdfprocessor.processor.PdfGenieProcessor;
 import org.tuwien.pdfprocessor.repository.DocumentRepository;
 
 /**
@@ -40,7 +40,7 @@ public class SolrProcessor {
     private final AppProperties properties;
 
     @Autowired
-    private DocumentProcessor documentProcessor;
+    private PdfGenieProcessor documentProcessor;
     
     @Autowired
     private DocumentRepository repository;
