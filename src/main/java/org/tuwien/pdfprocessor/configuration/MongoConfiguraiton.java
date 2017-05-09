@@ -15,7 +15,7 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
  * @author amin
  */
 //@Configuration
-//@EnableMongoRepositories
+@EnableMongoRepositories
 public class MongoConfiguraiton extends AbstractMongoConfiguration {
 
     @Override

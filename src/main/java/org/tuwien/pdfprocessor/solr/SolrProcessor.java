@@ -20,8 +20,10 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.jsoup.nodes.Node;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Example;
 import org.springframework.stereotype.Service;
 import org.tuwien.pdfprocessor.helper.AppProperties;
+import org.tuwien.pdfprocessor.helper.MongoDBHelper;
 import org.tuwien.pdfprocessor.model.Document;
 import org.tuwien.pdfprocessor.processor.PdfGenieProcessor;
 import org.tuwien.pdfprocessor.repository.DocumentRepository;
@@ -41,9 +43,12 @@ public class SolrProcessor {
 
     @Autowired
     private PdfGenieProcessor documentProcessor;
-    
+
     @Autowired
     private DocumentRepository repository;
+
+    @Autowired
+    private MongoDBHelper mongoHelper;
 
     @Autowired
     public SolrProcessor(AppProperties properties) {
@@ -63,6 +68,7 @@ public class SolrProcessor {
     /**
      * It should push extracted PDF documents into solr for search
      */
+    @Deprecated
     public void insertDocumentsIntoSolr() throws SolrServerException, IOException {
         SolrInputDocument solrInputDocument;
         solr.deleteByQuery("*:*");
@@ -87,31 +93,80 @@ public class SolrProcessor {
         }
 
     }
-    
+
     /**
-     * It should push extracted PDF documents (P TAGS) FROM DB into solr for search
+     * It should push extracted PDF documents (P TAGS) FROM DB into solr for
+     * search
      */
+    @Deprecated
     public void insertDocumentsIntoSolrFromDB() throws SolrServerException, IOException {
         SolrInputDocument solrInputDocument;
         solr.deleteByQuery("*:*");
         solr.commit();
-        
+
         List<Document> lstDocs = repository.findAll();
-        
+
         for (Document doc : lstDocs) {
-            
+
             solrInputDocument = new SolrInputDocument();
-                solrInputDocument.addField("documentid", doc.getDocumentId());
-                solrInputDocument.addField("content", doc.getContent());
-                try {
-                    solr.add(solrInputDocument);
-                    solr.commit();
-                } catch (SolrServerException ex) {
-                    LOGGER.log(Level.SEVERE, null, ex);
-                } catch (IOException ex) {
-                    LOGGER.log(Level.SEVERE, null, ex);
-                }
-                
+            solrInputDocument.addField("documentid", doc.getDocumentId());
+            solrInputDocument.addField("content", doc.getContent());
+            try {
+                solr.add(solrInputDocument);
+                solr.commit();
+            } catch (SolrServerException ex) {
+                LOGGER.log(Level.SEVERE, null, ex);
+            } catch (IOException ex) {
+                LOGGER.log(Level.SEVERE, null, ex);
+            }
+
         }
+    }
+
+    /**
+     * It should push extracted PDF documents (P TAGS) FROM DB into solr for
+     * search
+     *
+     * @param indexName
+     * @param type
+     * @throws org.apache.solr.client.solrj.SolrServerException
+     * @throws java.io.IOException
+     */
+    public void solrImportTables(String indexName, String type) throws SolrServerException, IOException {
+        SolrInputDocument solrInputDocument;
+        String solrPath = properties.getSolrAddress();
+
+        // Add core Name to uri
+        solr = new HttpSolrClient.Builder(solrPath + indexName).build();
+
+        solr.deleteByQuery("*:*");
+        solr.commit();
+
+        org.tuwien.pdfprocessor.model.Document exampleDocument = new org.tuwien.pdfprocessor.model.Document();
+        exampleDocument.setType(type);
+        Example<org.tuwien.pdfprocessor.model.Document> example = Example.of(exampleDocument);
+
+        List<Document> lstDocs = repository.findAll(example);
+        int counter = 0;
+        for (Document doc : lstDocs) {
+
+            solrInputDocument = new SolrInputDocument();
+            
+            if(doc.getContent().length() >= 32765)
+                doc.setContent(doc.getContent().substring(0, 30000));
+            
+            solrInputDocument.addField("documentid", doc.getDocumentId());
+            solrInputDocument.addField("content", doc.getContent());
+            try {
+                solr.add(solrInputDocument);
+                if (counter++ % 100 == 0) {
+                    solr.commit();
+                }
+
+            } catch (SolrServerException | IOException ex) {
+                LOGGER.log(Level.SEVERE, null, ex);
+            }
+        }
+        solr.commit();
     }
 }

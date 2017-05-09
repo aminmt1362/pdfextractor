@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Example;
 import org.springframework.stereotype.Service;
 import org.tuwien.pdfprocessor.model.Document;
-import org.tuwien.pdfprocessor.repository.Pdf2tableRepository;
+import org.tuwien.pdfprocessor.repository.DocumentRepository;
 
 /**
  *
@@ -20,7 +20,7 @@ import org.tuwien.pdfprocessor.repository.Pdf2tableRepository;
 public class MongoDBHelper {
 
     @Autowired
-    private Pdf2tableRepository repository;
+    private DocumentRepository repository;
 
     public void deleteAllDocuments(String type) {
 

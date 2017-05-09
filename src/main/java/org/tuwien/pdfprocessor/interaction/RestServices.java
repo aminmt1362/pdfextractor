@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.tuwien.pdfprocessor.processor.DocumentType;
 import org.tuwien.pdfprocessor.processor.Pdf2tableProcessor;
+import org.tuwien.pdfprocessor.processor.SolrInput;
 import org.tuwien.pdfprocessor.solr.SolrProcessor;
 
 /**
@@ -88,14 +89,15 @@ public class RestServices {
     /**
      * Import Processed documents into SOLR.
      *
+     * @param solrInput
      * @return
      */
     @PostMapping("/importtosolr")
-    public HttpEntity<?> importDocumentToSolr() {
+    public HttpEntity<?> importDocumentToSolr(@RequestBody SolrInput solrInput) {
         HttpContentResponse hcr = new HttpContentResponse(HttpContentResponse.STARTED);
 //        
         try {
-            solrProcessor.insertDocumentsIntoSolr();
+            solrProcessor.solrImportTables(solrInput.getCore(), solrInput.getProcessortype());
         } catch (SolrServerException | IOException ex) {
             LOGGER.log(Level.SEVERE, null, ex);
             hcr = new HttpContentResponse(HttpContentResponse.ERROR);
@@ -104,26 +106,26 @@ public class RestServices {
 //        
         return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
     }
-
-    /**
-     * Import Processed documents into SOLR.
-     *
-     * @return
-     */
-    @PostMapping("/importtosolrfromDB")
-    public HttpEntity<?> importDocumentToSolrFromDB() {
-        HttpContentResponse hcr = new HttpContentResponse(HttpContentResponse.STARTED);
-//        
-        try {
-            solrProcessor.insertDocumentsIntoSolrFromDB();
-        } catch (SolrServerException | IOException ex) {
-            LOGGER.log(Level.SEVERE, null, ex);
-            hcr = new HttpContentResponse(HttpContentResponse.ERROR);
-            return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
-        }
-//        
-        return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
-    }
+//
+//    /**
+//     * Import Processed documents into SOLR.
+//     *
+//     * @return
+//     */
+//    @PostMapping("/importtosolrfromDB")
+//    public HttpEntity<?> importDocumentToSolrFromDB() {
+//        HttpContentResponse hcr = new HttpContentResponse(HttpContentResponse.STARTED);
+////        
+//        try {
+//            solrProcessor.insertDocumentsIntoSolrFromDB();
+//        } catch (SolrServerException | IOException ex) {
+//            LOGGER.log(Level.SEVERE, null, ex);
+//            hcr = new HttpContentResponse(HttpContentResponse.ERROR);
+//            return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
+//        }
+////        
+//        return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
+//    }
 
 //    /**
 //     * Start processing the HTML document extracted by PDFGENIE (Check Other
@@ -167,7 +169,6 @@ public class RestServices {
 //
 //        return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
 //    }
-
     /**
      * Start processing the groundtruth by extracting tables from HTLM files
      * extracted by PDFGENIE
@@ -182,9 +183,11 @@ public class RestServices {
 
         try {
             if (documentType.getType().toLowerCase().equals("groundtruth")) {
-                pdfGenieProcessor.processGt(documentType.getSourcePath());
-            } else if(documentType.getType().toLowerCase().equals("default")) {
-                pdfGenieProcessor.processDBImport(documentType.getSourcePath());
+                pdfGenieProcessor.processPdfGenie(documentType.getSourcePath(), "pdfgeniegt");
+            } else if (documentType.getType().toLowerCase().equals("default")) {
+                pdfGenieProcessor.processPdfGenie(documentType.getSourcePath(), "pdfgenie");
+            } else if (documentType.getType().toLowerCase().equals("ptag")) {
+                pdfGenieProcessor.processDBImport(documentType.getSourcePath(), "pdfgenieptag");
             }
         } catch (IOException ex) {
             Logger.getLogger(RestServices.class.getName()).log(Level.SEVERE, null, ex);

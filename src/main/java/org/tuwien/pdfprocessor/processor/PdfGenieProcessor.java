@@ -48,16 +48,17 @@ public class PdfGenieProcessor {
     @Autowired
     private DocumentRepository repository;
 
-    public void processDBImport(String sourcePath) throws FileNotFoundException, IOException {
+    public void processDBImport(String sourcePath, String processType) throws FileNotFoundException, IOException {
 
-        mongoHelper.deleteAllDocuments("pdfgenie");
+        mongoHelper.deleteAllDocuments(processType);
         try (Stream<Path> paths = Files.walk(Paths.get(sourcePath))) {
             paths.forEach(filePath -> {
                 if (Files.isRegularFile(filePath)) {
                     try {
                         System.out.println(filePath);
                         String htmldata = Utility.readFile(filePath.toString(), StandardCharsets.UTF_8);
-                        List<org.tuwien.pdfprocessor.model.Document> tables = processDocumentMongoDB(htmldata, filePath.getFileName().toString());
+                        
+                        List<org.tuwien.pdfprocessor.model.Document> tables = processDocumentMongoDB(htmldata, filePath.getFileName().toString(), processType);
                         //this.extractedFiles.add(jSONArray);
                         //  repository.insert(this)
                         // Import it into DB OR CALL TCF IMPORT GT comparison
@@ -164,7 +165,7 @@ public class PdfGenieProcessor {
      * @param htmlData
      * @return
      */
-    private List<org.tuwien.pdfprocessor.model.Document> processDocumentMongoDB(String htmlData, String fileName) {
+    private List<org.tuwien.pdfprocessor.model.Document> processDocumentMongoDB(String htmlData, String fileName, String type) {
         Document document = Jsoup.parse(htmlData);
         JSONArray returnTables = new JSONArray();
         JSONObject tableObject;
@@ -195,7 +196,7 @@ public class PdfGenieProcessor {
                    
                     newMongoDoc.setDocumentId(id);
                     newMongoDoc.setContent(tableContent);
-                    newMongoDoc.setType("pdfgenie");
+                    newMongoDoc.setType(type);
                     //tableObject.put("documentid", id);
 
                     mongoDocs.add(newMongoDoc);
@@ -216,7 +217,7 @@ public class PdfGenieProcessor {
 
                 newMongoDoc.setDocumentId(id);
                 newMongoDoc.setContent(tableContent);
-                newMongoDoc.setType("pdfgenie");
+                newMongoDoc.setType(type);
                 //tableObject.put("documentid", id);
 
                 mongoDocs.add(newMongoDoc);
@@ -234,7 +235,7 @@ public class PdfGenieProcessor {
      * @throws FileNotFoundException
      * @throws IOException
      */
-    public void processGt(String sourcePath) throws FileNotFoundException, IOException {
+    public void processPdfGenie(String sourcePath, String type) throws FileNotFoundException, IOException {
 
         List<JSONArray> extractedFiles = new ArrayList<>();
         try (Stream<Path> paths = Files.walk(Paths.get(sourcePath))) {
@@ -246,7 +247,7 @@ public class PdfGenieProcessor {
                         JSONArray jSONArray = processTablesToJson(htmldata, filePath.getFileName().toString());
                         extractedFiles.add(jSONArray);
                         // Import it into DB OR CALL TCF IMPORT GT comparison
-                    } catch (IOException ex) {
+                    } catch (Exception ex) {
                         Logger.getLogger(GroundTruthProcessor.class.getName()).log(Level.SEVERE, null, ex);
                     }
 
@@ -255,7 +256,7 @@ public class PdfGenieProcessor {
         }
 
         // Remove all already processed pdfgenie groundtruth 
-        mongoHelper.deleteAllDocuments("pdfgeniegt");
+        mongoHelper.deleteAllDocuments(type);
         for (JSONArray extractedFile : extractedFiles) {
             //System.out.println(extractedFile.toString());
             for (Object o : extractedFile) {
@@ -265,8 +266,8 @@ public class PdfGenieProcessor {
                     docModel.setContent(objModel.toString());
                     docModel.setDocumentId(objModel.getString("fileid") + "_" + objModel.getInt("tablecounter"));
                     docModel.setDocumentName(objModel.getString("fileid"));
-                    docModel.setType("pdfgeniegt");
-                    repository.insert(docModel);
+                    docModel.setType(type);
+                    repository.save(docModel);
                 }
             }
         }

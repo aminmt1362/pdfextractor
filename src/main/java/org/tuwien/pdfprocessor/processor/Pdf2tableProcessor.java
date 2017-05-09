@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,14 +31,10 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Example;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.tuwien.pdfprocessor.helper.MongoDBHelper;
 import org.tuwien.pdfprocessor.repository.DocumentRepository;
-import org.tuwien.pdfprocessor.repository.Pdf2tableGtRepository;
-import org.tuwien.pdfprocessor.repository.Pdf2tableRepository;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 import org.w3c.dom.Node;
@@ -51,12 +48,11 @@ import org.xml.sax.SAXException;
 @Service
 public class Pdf2tableProcessor {
 
+//    @Autowired
+//    private Pdf2tableGtRepository gtRepository;
     @Autowired
-    private Pdf2tableGtRepository gtRepository;
+    private DocumentRepository repository;
 
-    @Autowired
-    private Pdf2tableRepository repository;
-    
     @Autowired
     private MongoDBHelper mongoHelper;
 
@@ -64,6 +60,9 @@ public class Pdf2tableProcessor {
 
     private static final String MAINPATH = "/home/amin/Documents/amin/classification/pdf2tableresults/all/";
     private static final String GROUNDTRUTHPATH = "/home/amin/Documents/amin/classification/pdf2tableresults/gt/";
+
+    private static final String PDFTABLECONST = "pdftable";
+    private static final String PDFTABLEGTCONST = "pdftablegt";
 
     public enum PROCESSTYPE {
         DEFAULT,
@@ -75,22 +74,24 @@ public class Pdf2tableProcessor {
         String finalPath = "";
 
         if (processType == PROCESSTYPE.GROUNDTRUTH) {
-            finalPath = GROUNDTRUTHPATH;
-            mongoHelper.deleteAllDocuments("pdf2tablegt");
+//            finalPath = GROUNDTRUTHPATH;
+            mongoHelper.deleteAllDocuments(PDFTABLEGTCONST);
         } else {
-            finalPath = MAINPATH;
-            mongoHelper.deleteAllDocuments("pdf2table");
+//            finalPath = MAINPATH;
+            mongoHelper.deleteAllDocuments(PDFTABLECONST);
         }
 
         finalPath = sourcePath;
-
+        List<org.tuwien.pdfprocessor.model.Document> docList = new ArrayList<>();
         try (Stream<Path> paths = Files.walk(Paths.get(finalPath))) {
             paths.forEach(filePath -> {
                 if (Files.isRegularFile(filePath)) {
 
                     try {
+
                         File fXmlFile = new File(filePath.toString());
                         if (fXmlFile.toString().endsWith("output.xml")) {
+                            System.out.println("processing " + filePath.toString());
 
                             DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
                             DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
@@ -102,7 +103,7 @@ public class Pdf2tableProcessor {
                             // Insert into MongoDB
                             if (insertIntoDB) {
                                 if (processType == PROCESSTYPE.GROUNDTRUTH) {
-                                    
+
                                     for (Object o : tables) {
                                         if (o instanceof JSONObject) {
                                             org.tuwien.pdfprocessor.model.Document docModel = new org.tuwien.pdfprocessor.model.Document();
@@ -110,21 +111,26 @@ public class Pdf2tableProcessor {
                                             docModel.setContent(objModel.toString());
                                             docModel.setDocumentId(objModel.getString("fileid") + "_" + objModel.getInt("tablecounter"));
                                             docModel.setDocumentName(objModel.getString("fileid"));
-                                            docModel.setType("pdf2tablegt");
-                                            gtRepository.insert(docModel);
+                                            docModel.setType(PDFTABLEGTCONST);
+//                                            repository.insert(docModel);
+                                            docList.add(docModel);
                                         }
                                     }
                                 } else {
-                                    
+
+                                    org.tuwien.pdfprocessor.model.Document docModel = null;
                                     for (Object o : tables) {
                                         if (o instanceof JSONObject) {
-                                            org.tuwien.pdfprocessor.model.Document docModel = new org.tuwien.pdfprocessor.model.Document();
+                                            docModel = new org.tuwien.pdfprocessor.model.Document();
                                             JSONObject objModel = ((JSONObject) o);
+//                                            if (!objModel.toString().equals("{}")) {
                                             docModel.setContent(objModel.toString());
                                             docModel.setDocumentId(objModel.getString("fileid") + "_" + objModel.getInt("tablecounter"));
                                             docModel.setDocumentName(objModel.getString("fileid"));
-                                            docModel.setType("pdf2table");
-                                            repository.insert(docModel);
+                                            docModel.setType(PDFTABLECONST);
+                                            docList.add(docModel);
+//                                            repository.insert(docModel);
+//                                            }
                                         }
                                     }
                                 }
@@ -142,7 +148,12 @@ public class Pdf2tableProcessor {
 
                 }
             });
+            
         }
+        
+        docList.forEach((table) -> {
+            repository.insert(table);
+        });
     }
 
     /**
@@ -160,7 +171,7 @@ public class Pdf2tableProcessor {
 
         NodeList nodeList = doc.getDocumentElement().getChildNodes();
         for (int i = 0; i < nodeList.getLength(); i++) {
-
+//            tableObject = new JSONObject();
             //We have encountered an <table> tag.
             Node node = nodeList.item(i);
             if ("table".equals(node.getNodeName())) {
@@ -192,13 +203,14 @@ public class Pdf2tableProcessor {
                         if (headerElementNode.getNodeName().equals("header_element")) {
                             headerelementcounter++;
                             String pathToNode = MessageFormat.format("/tables/table[{0}]/header[1]/header_line[1]/header_element[{1}]/@sh", tableCounter, headerelementcounter);
-                            try {
-                                String shVal = (String) xpath.evaluate(pathToNode, doc, XPathConstants.STRING);
-                                headerList.put(Integer.valueOf(shVal.trim()), headerElementNode.getTextContent().replace("\n", "").replace("\r", ""));
+//                            try {
+                            //String shVal = (String) xpath.evaluate(pathToNode, doc, XPathConstants.STRING);
+                            String shVal = headerElementNode.getAttributes().getNamedItem("sh").getNodeValue();
+                            headerList.put(Integer.valueOf(shVal.trim()), headerElementNode.getTextContent().replace("\n", "").replace("\r", ""));
 
-                            } catch (XPathExpressionException ex) {
-                                LOGGER.log(Level.SEVERE, null, ex);
-                            }
+//                            } catch (XPathExpressionException ex) {
+//                                LOGGER.log(Level.SEVERE, null, ex);
+//                            }
                         }
                     }
 
@@ -227,20 +239,39 @@ public class Pdf2tableProcessor {
                                 String headerText = entry.getValue();
 
                                 // Find Cell
-                                String propCell = MessageFormat.format("/tables/table[{0}]/tbody[1]/data_row[{1}]/cell[@sh={2}]", tableCounter, rowCounter + 1, shVal);
-                                expr = xpath.compile(propCell);
-                                NodeList nl = (NodeList) expr.evaluate(doc, XPathConstants.NODESET);
-                                if (nl.getLength() > 0) {
-                                    Node cellItem = nl.item(0);
-                                    String cellContent = cellItem.getTextContent().replace("\n", "").replace("\r", "");
+                                for (int dbc = 0; dbc < rowCounts; dbc++) {
+                                    Node dr = datarows.item(dbc);
 
-                                    if (headerText.equals("")) {
-                                        headerText = "header " + headerCounter;
+                                    for (int cellcnt = 0; cellcnt < dr.getChildNodes().getLength(); cellcnt++) {
+                                        Node cll = dr.getChildNodes().item(cellcnt);
+                                        if (cll.getAttributes() != null) {
+                                            if (Integer.valueOf(cll.getAttributes().getNamedItem("sh").getNodeValue()) == shVal) {
+
+//                                            Node cellItem = cll.getTextContent();
+                                                String cellContent = cll.getTextContent().replace("\n", "").replace("\r", "");
+
+                                                if (headerText.equals("")) {
+                                                    headerText = "header " + headerCounter;
+                                                }
+                                                tableDataObject.put(headerText, cellContent);
+                                            }
+                                        }
                                     }
-                                    tableDataObject.put(headerText, cellContent);
-                                } else {
-                                    tableDataObject.put(headerText, "no data");
                                 }
+//                                String propCell = MessageFormat.format("/tables/table[{0}]/tbody[1]/data_row[{1}]/cell[@sh={2}]", tableCounter, rowCounter + 1, shVal);
+//                                expr = xpath.compile(propCell);
+//                                NodeList nl = (NodeList) expr.evaluate(doc, XPathConstants.NODESET);
+//                                if (nl.getLength() > 0) {
+//                                    Node cellItem = nl.item(0);
+//                                    String cellContent = cellItem.getTextContent().replace("\n", "").replace("\r", "");
+//
+//                                    if (headerText.equals("")) {
+//                                        headerText = "header " + headerCounter;
+//                                    }
+//                                    tableDataObject.put(headerText, cellContent);
+//                                } else {
+//                                    tableDataObject.put(headerText, "no data");
+//                                }
                                 // Add this cellText with the headername into JSON
 
 //                                for (int cellcounter = 0; cellcounter < nl.getLength(); cellcounter++) {
@@ -305,9 +336,9 @@ public class Pdf2tableProcessor {
 
         for (org.tuwien.pdfprocessor.model.Document doc : docs) {
             restTemplate.postForEntity("http://localhost:8090/importtable/", doc.getContent(), org.tuwien.pdfprocessor.model.Document.class);
-            
+
         }
-        
+
         // now that all tables are importes, now we start calculation
         String entity = restTemplate.getForObject("http://localhost:8090/calculateScore/", String.class);
         System.out.print(entity);
