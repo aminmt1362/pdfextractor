@@ -6,12 +6,16 @@
 package org.tuwien.pdfprocessor.solr;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Stream;
 import javax.annotation.PostConstruct;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
@@ -124,6 +128,38 @@ public class SolrProcessor {
     }
 
     /**
+     * Imports the extracted html files from pdf to Solr for indexing
+     *
+     * @param path
+     * @throws SolrServerException
+     * @throws IOException
+     */
+    public void importHtmlToSolr(String path, String indexName) throws SolrServerException, IOException {
+
+        SolrInputDocument solrInputDocument;
+        String solrPath = properties.getSolrAddress();
+
+        // Add core Name to uri
+        solr = new HttpSolrClient.Builder(solrPath + indexName).build();
+
+        solr.deleteByQuery("*:*");
+        solr.commit();
+
+        try (Stream<Path> paths = Files.walk(Paths.get(path))) {
+            paths.forEach(filePath -> {
+                if (Files.isRegularFile(filePath)) {
+                    try {
+                        String content = new String(Files.readAllBytes(filePath));
+
+                    } catch (IOException ex) {
+                        LOGGER.log(Level.SEVERE, null, ex);
+                    }
+                }
+            });
+        }
+    }
+
+    /**
      * It should push extracted PDF documents (P TAGS) FROM DB into solr for
      * search
      *
@@ -151,10 +187,11 @@ public class SolrProcessor {
         for (Document doc : lstDocs) {
 
             solrInputDocument = new SolrInputDocument();
-            
-            if(doc.getContent().length() >= 32765)
+
+            if (doc.getContent().length() >= 32765) {
                 doc.setContent(doc.getContent().substring(0, 30000));
-            
+            }
+
             solrInputDocument.addField("documentid", doc.getDocumentId());
             solrInputDocument.addField("content", doc.getContent());
             try {

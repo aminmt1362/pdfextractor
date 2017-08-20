@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package org.tuwien.pdfprocessor.interaction;
+package org.tuwien.pdfprocessor.service;
 
 import org.tuwien.pdfprocessor.processor.PdfGenieProcessor;
 import org.tuwien.pdfprocessor.processor.GroundTruthProcessor;
@@ -94,6 +94,27 @@ public class RestServices {
      */
     @PostMapping("/importtosolr")
     public HttpEntity<?> importDocumentToSolr(@RequestBody SolrInput solrInput) {
+        HttpContentResponse hcr = new HttpContentResponse(HttpContentResponse.STARTED);
+//        
+        try {
+            solrProcessor.solrImportTables(solrInput.getCore(), solrInput.getProcessortype());
+        } catch (SolrServerException | IOException ex) {
+            LOGGER.log(Level.SEVERE, null, ex);
+            hcr = new HttpContentResponse(HttpContentResponse.ERROR);
+            return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
+        }
+//        
+        return new ResponseEntity(hcr, HttpStatus.ACCEPTED);
+    }
+    
+    /**
+     * Import Processed documents into SOLR.
+     *
+     * @param solrInput
+     * @return
+     */
+    @PostMapping("/importhtmltosolr")
+    public HttpEntity<?> importHtmlToSolr(@RequestBody SolrInput solrInput) {
         HttpContentResponse hcr = new HttpContentResponse(HttpContentResponse.STARTED);
 //        
         try {

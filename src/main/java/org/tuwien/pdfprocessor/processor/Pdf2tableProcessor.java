@@ -325,7 +325,7 @@ public class Pdf2tableProcessor {
     public String calculateScoring() {
 
         org.tuwien.pdfprocessor.model.Document exampleDocument = new org.tuwien.pdfprocessor.model.Document();
-        exampleDocument.setType("pdf2tablegt");
+        exampleDocument.setType("pdftablegt");
         Example<org.tuwien.pdfprocessor.model.Document> example = Example.of(exampleDocument);
 
         List<org.tuwien.pdfprocessor.model.Document> docs = repository.findAll(example);
